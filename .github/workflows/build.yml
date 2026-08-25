@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - name: Checkout Kernel Source
       run: |
@@ -24,7 +24,7 @@ jobs:
         # Load the base defconfig for Hi3798MV200 Android
         make ARCH=arm hi3798mv200_android_defconfig
         
-        # Inject Docker, LXC, and Isolation features (Cgroups, Namespaces, OverlayFS)
+        # Inject Docker, LXC, and Isolation features
         cat <<EOF >> .config
         CONFIG_NAMESPACES=y
         CONFIG_UTS_NS=y
@@ -67,7 +67,7 @@ jobs:
     - name: Compile Kernel
       run: |
         cd hisilicon-kernel
-        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j$(nproc) zImage
+        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- HOSTCFLAGS="-fcommon" KBUILD_HOSTCFLAGS="-fcommon" EXTRA_CFLAGS="-fcommon" -j$(nproc) zImage
         
     - name: Upload zImage Artifact
       uses: actions/upload-artifact@v4
