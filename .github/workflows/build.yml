@@ -19,10 +19,10 @@ jobs:
         apt-get update && 
         apt-get install -y gcc-arm-linux-gnueabihf build-essential bc libssl-dev libncurses5-dev bison flex libelf-dev xz-utils wget && 
         sed -i 's/SDCARDFS_VERSION/\"1.0\"/g' fs/sdcardfs/main.c &&
-        sed -i 's/dwc_dma_t/dma_addr_t/g' drivers/usb/gadget/udc/hiudc/dwc_os.h &&
-        sed -i 's/dwc_dma_t/dma_addr_t/g' drivers/usb/gadget/udc/hiudc/dwc_otg_pcd_if.h &&
-        sed -i 's/dwc_dma_t/dma_addr_t/g' drivers/usb/gadget/udc/hiudc/dwc_otg_hcd_if.h &&
         make ARCH=arm hi3798mv200_android_defconfig && 
+        ./scripts/config --disable CONFIG_USB_GADGET &&
+        ./scripts/config --disable CONFIG_USB_HIUDC &&
+        ./scripts/config --disable CONFIG_USB_DWC2 &&
         echo 'CONFIG_NAMESPACES=y' >> .config &&
         echo 'CONFIG_UTS_NS=y' >> .config &&
         echo 'CONFIG_IPC_NS=y' >> .config &&
