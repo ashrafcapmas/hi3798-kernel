@@ -15,17 +15,29 @@ jobs:
     - name: Checkout Kernel Source
       run: |
         git clone --depth=1 https://github.com/leandrotsampa/hisilicon-kernel.git
+        cp kernel_backup.zip hisilicon-kernel/
         
-    - name: Compile Kernel inside Ubuntu 18.04 Docker Container
+    - name: Compile Kernel inside Ubuntu 14.04 Docker Container
       run: |
-        docker run -v $(pwd)/hisilicon-kernel:/work -w /work ubuntu:18.04 bash -c "
+        docker run -v $(pwd)/hisilicon-kernel:/work -w /work ubuntu:14.04 bash -c "
+        sed -i 's/archive.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list &&
+        sed -i 's/security.ubuntu.com/old-releases.ubuntu.com/g' /etc/apt/sources.list &&
         apt-get update && 
-        apt-get install -y gcc-arm-linux-gnueabihf build-essential bc libssl-dev libncurses5-dev bison flex libelf-dev xz-utils wget && 
+        apt-get install -y gcc-arm-linux-gnueabihf build-essential bc libssl-dev libncurses5-dev bison flex libelf-dev xz-utils wget unzip abootimg && 
+        
+        echo 'Extracting factory config...' &&
+        unzip -q kernel_backup.zip &&
+        dd if=kernel_backup.img of=real_boot.img bs=8192 skip=1 &&
+        abootimg -x real_boot.img &&
+        scripts/extract-ikconfig zImage > .config || make ARCH=arm hi3798mv200_android_defconfig &&
+        
+        echo 'Patching C errors...' &&
         sed -i 's/SDCARDFS_VERSION/\"1.0\"/g' fs/sdcardfs/main.c &&
-        make ARCH=arm hi3798mv200_android_defconfig && 
         ./scripts/config --disable CONFIG_USB_GADGET &&
         ./scripts/config --disable CONFIG_USB_HIUDC &&
         ./scripts/config --disable CONFIG_USB_DWC2 &&
+        
+        echo 'Injecting Docker requirements...' &&
         echo 'CONFIG_NAMESPACES=y' >> .config &&
         echo 'CONFIG_UTS_NS=y' >> .config &&
         echo 'CONFIG_IPC_NS=y' >> .config &&
@@ -59,30 +71,19 @@ jobs:
         echo 'CONFIG_NETFILTER_XT_MATCH_IPVS=y' >> .config &&
         echo 'CONFIG_IP_NF_NAT=y' >> .config &&
         echo 'CONFIG_NF_NAT=y' >> .config &&
+        
         make ARCH=arm olddefconfig && 
-        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- HOSTCFLAGS=\"-fcommon\" KBUILD_HOSTCFLAGS=\"-fcommon\" EXTRA_CFLAGS=\"-fcommon\" -j\$(nproc) zImage
+        make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- HOSTCFLAGS=\"-fcommon\" KBUILD_HOSTCFLAGS=\"-fcommon\" EXTRA_CFLAGS=\"-fcommon\" -j\$(nproc) zImage &&
+        
+        echo 'Injecting new kernel into factory boot.img...' &&
+        dd if=kernel_backup.img of=advca_header.bin bs=8192 count=1 &&
+        cp real_boot.img modified_boot.img &&
+        abootimg -u modified_boot.img -k arch/arm/boot/zImage &&
+        cat advca_header.bin modified_boot.img > new_boot.img
         "
-
-    - name: Inject New Kernel into boot.img
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y abootimg
-        unzip kernel_backup.zip
-        
-        # 1. Extract the 8KB HiSilicon ADVCA security header
-        dd if=kernel_backup.img of=advca_header.bin bs=8192 count=1
-        
-        # 2. Extract the actual Android boot.img
-        dd if=kernel_backup.img of=real_boot.img bs=8192 skip=1
-        
-        # 3. Inject the new zImage into the real boot.img
-        abootimg -u real_boot.img -k hisilicon-kernel/arch/arm/boot/zImage
-        
-        # 4. Glue the HiSilicon header back onto the modified boot.img
-        cat advca_header.bin real_boot.img > new_boot.img
 
     - name: Upload new_boot.img Artifact
       uses: actions/upload-artifact@v4
       with:
         name: Final_Boot_Image
-        path: new_boot.img
+        path: hisilicon-kernel/new_boot.img
