@@ -68,8 +68,18 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y abootimg
         unzip kernel_backup.zip
-        cp kernel_backup.img new_boot.img
-        abootimg -u new_boot.img -k hisilicon-kernel/arch/arm/boot/zImage
+        
+        # 1. Extract the 8KB HiSilicon ADVCA security header
+        dd if=kernel_backup.img of=advca_header.bin bs=8192 count=1
+        
+        # 2. Extract the actual Android boot.img
+        dd if=kernel_backup.img of=real_boot.img bs=8192 skip=1
+        
+        # 3. Inject the new zImage into the real boot.img
+        abootimg -u real_boot.img -k hisilicon-kernel/arch/arm/boot/zImage
+        
+        # 4. Glue the HiSilicon header back onto the modified boot.img
+        cat advca_header.bin real_boot.img > new_boot.img
 
     - name: Upload new_boot.img Artifact
       uses: actions/upload-artifact@v4
