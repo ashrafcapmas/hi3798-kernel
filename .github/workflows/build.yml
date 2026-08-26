@@ -17,13 +17,11 @@ jobs:
         git clone --depth=1 https://github.com/leandrotsampa/hisilicon-kernel.git
         cp kernel_backup.zip hisilicon-kernel/
         
-    - name: Compile Kernel inside Ubuntu 14.04 Docker Container
+    - name: Compile Kernel inside Ubuntu 18.04 Docker Container
       run: |
-        docker run -v $(pwd)/hisilicon-kernel:/work -w /work ubuntu:14.04 bash -c "
-        echo 'deb http://old-releases.ubuntu.com/ubuntu/ trusty main universe' > /etc/apt/sources.list &&
-        echo 'deb http://old-releases.ubuntu.com/ubuntu/ trusty-updates main universe' >> /etc/apt/sources.list &&
+        docker run -v $(pwd)/hisilicon-kernel:/work -w /work ubuntu:18.04 bash -c "
         apt-get update && 
-        apt-get install -y gcc-arm-linux-gnueabihf build-essential bc libssl-dev libncurses5-dev bison flex libelf-dev unzip abootimg && 
+        apt-get install -y gcc-arm-linux-gnueabihf build-essential bc libssl-dev libncurses5-dev bison flex libelf-dev xz-utils wget unzip abootimg && 
         
         echo 'Extracting factory config...' &&
         unzip -q kernel_backup.zip &&
