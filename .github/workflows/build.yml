@@ -9,6 +9,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+    - name: Checkout User Repository
+      uses: actions/checkout@v4
+
     - name: Checkout Kernel Source
       run: |
         git clone --depth=1 https://github.com/leandrotsampa/hisilicon-kernel.git
@@ -59,9 +62,17 @@ jobs:
         make ARCH=arm olddefconfig && 
         make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- HOSTCFLAGS=\"-fcommon\" KBUILD_HOSTCFLAGS=\"-fcommon\" EXTRA_CFLAGS=\"-fcommon\" -j\$(nproc) zImage
         "
-        
-    - name: Upload zImage Artifact
+
+    - name: Inject New Kernel into boot.img
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y abootimg
+        unzip kernel_backup.zip
+        cp kernel_backup.img new_boot.img
+        abootimg -u new_boot.img -k hisilicon-kernel/arch/arm/boot/zImage
+
+    - name: Upload new_boot.img Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: Compiled_Kernel_zImage
-        path: hisilicon-kernel/arch/arm/boot/zImage
+        name: Final_Boot_Image
+        path: new_boot.img
